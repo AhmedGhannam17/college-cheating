@@ -1,0 +1,94 @@
+**Setup (Ubuntu terminal, `Ctrl+Alt+T`)**
+
+```bash
+sudo apt update
+sudo apt install default-jdk -y
+javac -version
+mkdir -p ~/cnlab/exp8
+cd ~/cnlab/exp8
+```
+
+**1. Server:** run `nano UDPServer.java`, paste this, then save (`Ctrl+O`, Enter, `Ctrl+X`).
+
+```java
+import java.net.*;
+import java.io.*;
+
+public class UDPServer {
+    public static void main(String[] args) throws Exception {
+        DatagramSocket socket = new DatagramSocket(5000);
+        System.out.println("Server started. Waiting for client...");
+
+        // Receive first packet to learn client's address and port
+        byte[] buf = new byte[1024];
+        DatagramPacket request = new DatagramPacket(buf, buf.length);
+        socket.receive(request);
+        InetAddress ip = request.getAddress();
+        int port = request.getPort();
+        System.out.println("Client connected. Type messages (exit to quit):");
+
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+        String msg;
+        while ((msg = br.readLine()) != null) {
+            byte[] data = msg.getBytes();
+            socket.send(new DatagramPacket(data, data.length, ip, port));
+            if (msg.equalsIgnoreCase("exit")) break;
+        }
+        socket.close();
+    }
+}
+```
+
+**2. Client:** run `nano UDPClient.java`, paste and save.
+
+```java
+import java.net.*;
+
+public class UDPClient {
+    public static void main(String[] args) throws Exception {
+        DatagramSocket socket = new DatagramSocket();
+        InetAddress ip = InetAddress.getByName("localhost");
+
+        // Say hello so the server knows where to send
+        byte[] hello = "hello".getBytes();
+        socket.send(new DatagramPacket(hello, hello.length, ip, 5000));
+        System.out.println("Connected. Waiting for messages...");
+
+        while (true) {
+            byte[] buf = new byte[1024];
+            DatagramPacket packet = new DatagramPacket(buf, buf.length);
+            socket.receive(packet);
+            String msg = new String(packet.getData(), 0, packet.getLength());
+            if (msg.equalsIgnoreCase("exit")) break;
+            System.out.println("Server: " + msg);
+        }
+        socket.close();
+    }
+}
+```
+
+**3. Compile and run**
+
+Terminal 1 (start this first):
+```bash
+cd ~/cnlab/exp8
+javac UDPServer.java UDPClient.java
+java UDPServer
+```
+
+Terminal 2 (`Ctrl+Shift+T`):
+```bash
+cd ~/cnlab/exp8
+java UDPClient
+```
+
+Type in Terminal 1, and each line appears in Terminal 2. Type `exit` to close both.
+
+**If you get errors**
+- `Address already in use`: run `pkill -f UDPServer`, then start again.
+- Two separate VMs: replace `"localhost"` with the server's IP (`hostname -I`), set both VMs to Bridged Adapter, and run `sudo ufw allow 5000/udp` on the server if the firewall is on.
+
+**Viva points**
+- UDP is connectionless and doesn't guarantee delivery or order.
+- `DatagramSocket` sends and receives; `DatagramPacket` holds the data, plus the IP and port.
+- `receive()` blocks until a packet arrives.

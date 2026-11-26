@@ -1,0 +1,76 @@
+import java.net.*;
+import java.util.Scanner;
+
+public class UDPChat {
+    public static void main(String[] args) throws Exception {
+
+        Scanner sc = new Scanner(System.in);
+
+        System.out.println("1. Server");
+        System.out.println("2. Client");
+        System.out.print("Choose role: ");
+        int choice = sc.nextInt();
+        sc.nextLine();
+
+        DatagramSocket socket = new DatagramSocket(
+            choice == 1 ? 5000 : 5001
+        );
+
+        InetAddress ip;
+        int port;
+
+        if (choice == 1) {
+            System.out.print("Enter client IP: ");
+            ip = InetAddress.getByName(sc.nextLine());
+            port = 5001;
+        } else {
+            System.out.print("Enter server IP: ");
+            ip = InetAddress.getByName(sc.nextLine());
+            port = 5000;
+        }
+
+        System.out.println("Chat started! Type 'exit' to quit.");
+
+        Thread receiver = new Thread(() -> {
+            try {
+                byte[] data = new byte[1024];
+
+                while (true) {
+                    DatagramPacket packet =
+                        new DatagramPacket(data, data.length);
+
+                    socket.receive(packet);
+
+                    String msg = new String(
+                        packet.getData(), 0, packet.getLength()
+                    );
+
+                    System.out.println("\nReceived: " + msg);
+                }
+            } catch (Exception e) {
+                System.out.println("Connection closed.");
+            }
+        });
+
+        receiver.setDaemon(true);
+        receiver.start();
+
+        while (true) {
+            String msg = sc.nextLine();
+
+            if (msg.equalsIgnoreCase("exit"))
+                break;
+
+            byte[] data = msg.getBytes();
+
+            DatagramPacket packet = new DatagramPacket(
+                data, data.length, ip, port
+            );
+
+            socket.send(packet);
+        }
+
+        socket.close();
+        sc.close();
+    }
+}
